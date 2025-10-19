@@ -3,9 +3,9 @@ import base64
 import io
 import threading
 import os
-from socket import socket, AF_INET, SOCK_STREAM  # Виправлено: SOCK_STREAM
+from socket import socket, AF_INET, SOCK_STREAM
 from customtkinter import *
-from tkinter import filedialog
+from tkinter import filedialog, END
 from PIL import Image
 
 
