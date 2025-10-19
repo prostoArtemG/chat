@@ -17,8 +17,8 @@ class MainWindow(CTk):
         self.title("Chat Client")
 
         # Server settings (change for remote connection)
-        self.server_host = "your-app.railway.app"  # Замініть на URL з Railway
-        self.server_port = 8080
+        self.server_host = "trolley.proxy.rlwy.net"  # Або "chat-production-b3f4.up.railway.app"
+        self.server_port = 14495  # Для проксі; або 8080 для домену
 
         self.username = "KTO-TO"
 
