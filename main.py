@@ -17,7 +17,7 @@ class MainWindow(CTk):
         self.title("Chat Client")
 
         # Server settings (change for remote connection)
-        self.server_host = "localhost"  # Change to your Railway URL, e.g., "your-app.railway.app"
+        self.server_host = "your-app.railway.app"  # Замініть на URL з Railway
         self.server_port = 8080
 
         self.username = "KTO-TO"
