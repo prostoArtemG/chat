@@ -3,33 +3,343 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Chat Client</title>
+    <title>KUKUSH</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
     <style>
-        body { font-family: Arial, sans-serif; margin: 0; padding: 10px; background: #f0f0f0; }
-        #chat { height: 400px; overflow-y: scroll; border: 1px solid #ccc; padding: 10px; background: white; }
-        #input-area { display: flex; margin-top: 10px; }
-        #message { flex: 1; padding: 10px; }
-        button { padding: 10px; margin-left: 5px; }
-        #file-input { display: none; }
-        .menu { position: absolute; top: 10px; right: 10px; }
-        #nick-input { margin-bottom: 10px; }
-        .system { color: gray; font-style: italic; }
-        .message { margin: 5px 0; }
-        img { max-width: 300px; max-height: 300px; }
+        :root {
+            --bg-primary: linear-gradient(135deg, #0f0f23 0%, #1a1a2e 50%, #16213e 100%);
+            --bg-secondary: rgba(255, 255, 255, 0.05);
+            --text-primary: #ffffff;
+            --text-secondary: #a0a0a0;
+            --accent: linear-gradient(45deg, #667eea 0%, #764ba2 100%);
+            --message-own: rgba(102, 126, 234, 0.2);
+            --message-other: rgba(118, 75, 162, 0.2);
+            --blur: blur(10px);
+            --shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            height: 100vh;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Header с блюром */
+        .header {
+            background: var(--bg-secondary);
+            backdrop-filter: var(--blur);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 1rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: relative;
+            z-index: 10;
+        }
+
+        .header h1 {
+            font-size: 1.5rem;
+            font-weight: 600;
+            background: var(--accent);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .menu {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        #nick-input {
+            background: var(--bg-secondary);
+            backdrop-filter: var(--blur);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            padding: 0.5rem 1rem;
+            color: var(--text-primary);
+            font-size: 0.9rem;
+            width: 120px;
+            transition: all 0.3s ease;
+        }
+
+        #nick-input:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .btn {
+            background: var(--accent);
+            border: none;
+            border-radius: 12px;
+            padding: 0.5rem 1rem;
+            color: white;
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow);
+        }
+
+        /* Чат область */
+        #chat {
+            flex: 1;
+            overflow-y: auto;
+            padding: 1rem;
+            scroll-behavior: smooth;
+            scrollbar-width: thin;
+            scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
+        }
+
+        #chat::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        #chat::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        #chat::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 3px;
+        }
+
+        .message {
+            display: flex;
+            margin-bottom: 1rem;
+            opacity: 0;
+            animation: fadeIn 0.5s ease forwards;
+            gap: 0.75rem;
+        }
+
+        @keyframes fadeIn {
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .message.own {
+            flex-direction: row-reverse;
+            justify-content: flex-end;
+        }
+
+        .avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.8rem;
+            font-weight: 600;
+            background: var(--accent);
+            color: white;
+            flex-shrink: 0;
+        }
+
+        .message-content {
+            max-width: 70%;
+            background: var(--bg-secondary);
+            backdrop-filter: var(--blur);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 18px;
+            padding: 0.75rem 1rem;
+            position: relative;
+            box-shadow: var(--shadow);
+        }
+
+        .message.own .message-content {
+            background: var(--message-own);
+            border-color: rgba(102, 126, 234, 0.3);
+        }
+
+        .message.other .message-content {
+            background: var(--message-other);
+            border-color: rgba(118, 75, 162, 0.3);
+        }
+
+        .message-header {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin-bottom: 0.25rem;
+        }
+
+        .username {
+            font-weight: 600;
+            font-size: 0.85rem;
+            background: var(--accent);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .timestamp {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+        }
+
+        .message-text {
+            font-size: 0.95rem;
+            line-height: 1.4;
+            word-wrap: break-word;
+        }
+
+        .system {
+            text-align: center;
+            color: var(--text-secondary);
+            font-style: italic;
+            margin: 1rem 0;
+            background: none;
+            border-radius: 0;
+        }
+
+        img {
+            max-width: 100%;
+            max-height: 200px;
+            border-radius: 12px;
+            margin-top: 0.5rem;
+            box-shadow: var(--shadow);
+        }
+
+        /* Input область с блюром */
+        #input-area {
+            background: var(--bg-secondary);
+            backdrop-filter: var(--blur);
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 1rem;
+            display: flex;
+            gap: 0.5rem;
+            align-items: end;
+        }
+
+        #message {
+            flex: 1;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: var(--blur);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 25px;
+            padding: 0.75rem 1rem;
+            color: var(--text-primary);
+            font-size: 0.95rem;
+            resize: none;
+            outline: none;
+            transition: all 0.3s ease;
+        }
+
+        #message:focus {
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        #file-input {
+            display: none;
+        }
+
+        /* Мобильная адаптация */
+        @media (max-width: 768px) {
+            body {
+                padding: 0;
+            }
+
+            .header {
+                padding: 0.75rem;
+            }
+
+            .header h1 {
+                font-size: 1.2rem;
+            }
+
+            .menu {
+                gap: 0.5rem;
+            }
+
+            #nick-input {
+                width: 100px;
+                font-size: 0.8rem;
+            }
+
+            .btn {
+                padding: 0.5rem;
+                font-size: 0.9rem;
+            }
+
+            #chat {
+                padding: 0.75rem;
+            }
+
+            .message {
+                margin-bottom: 0.75rem;
+                gap: 0.5rem;
+            }
+
+            .avatar {
+                width: 32px;
+                height: 32px;
+                font-size: 0.7rem;
+            }
+
+            .message-content {
+                max-width: 85%;
+                padding: 0.5rem 0.75rem;
+            }
+
+            #input-area {
+                padding: 0.75rem;
+                position: sticky;
+                bottom: 0;
+            }
+
+            #message {
+                padding: 0.5rem 0.75rem;
+                font-size: 0.9rem;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .menu {
+                flex-direction: column;
+                align-items: flex-end;
+            }
+
+            #nick-input {
+                width: 80px;
+            }
+        }
     </style>
 </head>
 <body>
-    <div class="menu">
-        <input id="nick-input" type="text" placeholder="Your nick..." value="KTO-TO">
-        <button onclick="changeNick()">Change Nick</button>
+    <div class="header">
+        <h1><i class="fas fa-comments"></i> KUKISH</h1>
+        <div class="menu">
+            <input id="nick-input" type="text" placeholder="Nick..." value="KTO-TO">
+            <button class="btn" onclick="changeNick()"><i class="fas fa-user-edit"></i> Nick</button>
+        </div>
     </div>
     <div id="chat"></div>
     <div id="input-area">
-        <input id="message" type="text" placeholder="Enter message..." onkeypress="if(event.key==='Enter') sendMessage()">
+        <input id="message" type="text" placeholder="Type your message..." onkeypress="if(event.key==='Enter') sendMessage()">
         <input id="file-input" type="file" accept="image/*" onchange="sendImage()">
-        <button onclick="sendMessage()">Send</button>
-        <button onclick="document.getElementById('file-input').click()">??</button>
+        <button class="btn" onclick="document.getElementById('file-input').click()"><i class="fas fa-image"></i></button>
+        <button class="btn" onclick="sendMessage()"><i class="fas fa-paper-plane"></i> Send</button>
     </div>
 
     <script>
@@ -38,35 +348,61 @@
 
         socket.on('connect', () => {
             socket.emit('join', { username: username });
-            addMessage('[SYSTEM] Connected to chat!');
+            addMessage('[SYSTEM] Connected to KUKISH!', null, 'system');
         });
 
-        function addMessage(msg, img = null) {
+        function addMessage(msg, img = null, type = 'message') {
             const chat = document.getElementById('chat');
             const div = document.createElement('div');
-            div.className = 'message';
-            if (msg.startsWith('[SYSTEM]')) {
-                div.className += ' system';
+            div.className = `message ${type === 'system' ? 'system' : (type === 'own' ? 'own' : 'other')}`;
+            
+            if (type === 'system') {
+                div.innerHTML = `<div class="message-content">${msg}</div>`;
+            } else {
+                const timestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                const sideClass = type === 'own' ? 'own' : 'other';
+                div.innerHTML = `
+                    <div class="avatar">${username.charAt(0).toUpperCase()}</div>
+                    <div class="message-content ${sideClass}">
+                        <div class="message-header">
+                            <span class="username">${username}</span>
+                            <span class="timestamp">${timestamp}</span>
+                        </div>
+                        <div class="message-text">${msg}</div>
+                        ${img ? `<img src="${img}" alt="Image">` : ''}
+                    </div>
+                `;
+                if (type === 'own') {
+                    div.querySelector('.avatar').style.background = 'linear-gradient(45deg, #667eea, #764ba2)';
+                }
             }
-            div.innerHTML = msg + (img ? `<br><img src="${img}" alt="Image">` : '');
+            
             chat.appendChild(div);
             chat.scrollTop = chat.scrollHeight;
         }
 
         socket.on('text_message', data => {
-            addMessage(`${data.username}: ${data.message}`);
+            if (data.username === username) {
+                addMessage(data.message, null, 'own');
+            } else {
+                addMessage(data.message, null, 'other');
+            }
         });
 
         socket.on('image_message', data => {
-            addMessage(`${data.username} sent image: ${data.filename}`, `data:image/png;base64,${data.image}`);
+            if (data.username === username) {
+                addMessage(`Sent image: ${data.filename}`, `data:image/png;base64,${data.image}`, 'own');
+            } else {
+                addMessage(`Sent image: ${data.filename}`, `data:image/png;base64,${data.image}`, 'other');
+            }
         });
 
         socket.on('system_message', msg => {
-            addMessage(msg);
+            addMessage(msg, null, 'system');
         });
 
         function sendMessage() {
-            const msg = document.getElementById('message').value;
+            const msg = document.getElementById('message').value.trim();
             if (msg) {
                 socket.emit('text_message', { message: msg });
                 document.getElementById('message').value = '';
@@ -76,17 +412,17 @@
         function sendImage() {
             const file = document.getElementById('file-input').files[0];
             if (file) {
-                if (file.size > 5 * 1024 * 1024) {  // Лимит 5MB
-                    alert('File too large!');
+                if (file.size > 5 * 1024 * 1024) {
+                    alert('File too large (max 5MB)!');
                     return;
                 }
                 const reader = new FileReader();
                 reader.onload = (e) => {
-                    const b64 = e.target.result.split(',')[1];  // Base64 без префикса
+                    const b64 = e.target.result.split(',')[1];
                     socket.emit('image_message', { filename: file.name, image: b64 });
                 };
                 reader.readAsDataURL(file);
-                document.getElementById('file-input').value = '';  // Очистка
+                document.getElementById('file-input').value = '';
             }
         }
 
@@ -95,7 +431,7 @@
             if (newNick && newNick !== username) {
                 socket.emit('change_nick', { new_username: newNick });
                 username = newNick;
-                addMessage(`[SYSTEM] Nick changed to ${newNick}`);
+                addMessage(`Nick changed to ${newNick}`, null, 'system');
             }
         }
     </script>
