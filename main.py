@@ -16,9 +16,9 @@ class MainWindow(CTk):
         self.geometry('600x600')
         self.title("Chat Client")
 
-        # Server settings (ИЗМЕНЕНО: для Railway TCP Proxy)
-        self.server_host = "chat-production-ced1.up.railway.app"  # Твой публичный домен
-        self.server_port = 54321  # Твой внешний TCP-порт из Railway
+        # Server settings (Р·Р°РјРµРЅРё РЅР° СЃРІРѕР№ TCP-СЃРµСЂРІРµСЂ, РµСЃР»Рё РµСЃС‚СЊ; РґР»СЏ Railway вЂ” РЅСѓР¶РµРЅ РѕС‚РґРµР»СЊРЅС‹Р№)
+        self.server_host = "chat-production-ced1.up.railway.app"  # РўРІРѕР№ С…РѕСЃС‚
+        self.server_port = 54321  # РўРІРѕР№ РїРѕСЂС‚
 
         self.username = "KTO-TO"
 
