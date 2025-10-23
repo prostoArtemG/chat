@@ -1,16 +1,16 @@
 # -*- coding: utf-8 -*-
 import os
 from flask import Flask, render_template, request, session
-from flask_socketio import SocketIO, emit, join_room, leave_room, send
+from flask_socketio import SocketIO, emit, join_room, leave_room
 from PIL import Image
 import base64
 import io
 
 app = Flask(__name__)
-app.config['SECRET_KEY'] = 'your-secret-key'  # Äëÿ ñåññèé (ñìåíèòü íà ğåàëüíûé)
-socketio = SocketIO(app, cors_allowed_origins="*", async_mode='eventlet')
+app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'your-secret-key-change-me')  # Ğ˜Ğ· env Ğ´Ğ»Ñ Railway
+socketio = SocketIO(app, cors_allowed_origins="*", async_mode='eventlet', logger=True, engineio_logger=True)
 
-# Õğàíèëèùå àêòèâíûõ ïîëüçîâàòåëåé (room-based, âñå â îäíîé êîìíàòå 'chat')
+# Ğ¥Ñ€Ğ°Ğ½Ğ¸Ğ»Ğ¸Ñ‰Ğµ Ğ°ĞºÑ‚Ğ¸Ğ²Ğ½Ñ‹Ñ… Ğ¿Ğ¾Ğ»ÑŒĞ·Ğ¾Ğ²Ğ°Ñ‚ĞµĞ»ĞµĞ¹ (Ğ²ÑĞµ Ğ² Ğ¾Ğ´Ğ½Ğ¾Ğ¹ ĞºĞ¾Ğ¼Ğ½Ğ°Ñ‚Ğµ 'chat')
 users = {}  # {sid: username}
 
 @app.route('/')
@@ -31,7 +31,9 @@ def handle_disconnect():
 
 @socketio.on('join')
 def handle_join(data):
-    username = data['username']
+    username = data.get('username', 'Anonymous').strip()
+    if not username:
+        username = 'Anonymous'
     users[request.sid] = username
     emit('system_message', f"[SYSTEM] {username} joined the chat!", broadcast=True, include_self=False)
     print(f"User {username} joined")
@@ -39,25 +41,45 @@ def handle_join(data):
 @socketio.on('change_nick')
 def handle_change_nick(data):
     old_username = users.get(request.sid)
-    new_username = data['new_username']
-    if old_username and new_username:
+    new_username = data.get('new_username', '').strip()
+    if old_username and new_username and new_username != old_username:
         users[request.sid] = new_username
         emit('system_message', f"[SYSTEM] {old_username} changed nick to {new_username}", broadcast=True, include_self=False)
+        print(f"User changed nick: {old_username} -> {new_username}")
 
 @socketio.on('text_message')
 def handle_text_message(data):
     username = users.get(request.sid)
     if username:
-        message = data['message']
-        emit('text_message', {'username': username, 'message': message}, broadcast=True, include_self=False)
+        message = data.get('message', '').strip()
+        if message and len(message) <= 500:  # Ğ›Ğ¸Ğ¼Ğ¸Ñ‚ Ğ½Ğ° Ğ´Ğ»Ğ¸Ğ½Ñƒ Ğ´Ğ»Ñ ÑĞ¿Ğ°Ğ¼Ğ°
+            emit('text_message', {'username': username, 'message': message}, broadcast=True, include_self=False)
+            print(f"Message from {username}: {message}")
+        else:
+            emit('system_message', "Message too long or empty!", to=request.sid)
 
 @socketio.on('image_message')
 def handle_image_message(data):
     username = users.get(request.sid)
     if username:
-        filename = data['filename']
-        b64_img = data['image']
-        emit('image_message', {'username': username, 'filename': filename, 'image': b64_img}, broadcast=True, include_self=False)
+        filename = data.get('filename', 'image.png').strip()
+        b64_img = data.get('image', '').strip()
+        if b64_img and len(b64_img) <= 1048576:  # Ğ›Ğ¸Ğ¼Ğ¸Ñ‚ ~1MB base64
+            try:
+                # Ğ’Ğ°Ğ»Ğ¸Ğ´Ğ°Ñ†Ğ¸Ñ base64
+                img_data = base64.b64decode(b64_img)
+                pil_img = Image.open(io.BytesIO(img_data))
+                # ĞŸÑ€Ğ¾Ğ²ĞµÑ€ĞºĞ°: Ñ‚Ğ¾Ğ»ÑŒĞºĞ¾ Ğ¸Ğ·Ğ¾Ğ±Ñ€Ğ°Ğ¶ĞµĞ½Ğ¸Ñ
+                if pil_img.format in ['PNG', 'JPEG', 'JPG', 'GIF', 'BMP']:
+                    emit('image_message', {'username': username, 'filename': filename, 'image': b64_img}, broadcast=True, include_self=False)
+                    print(f"Image from {username}: {filename}")
+                else:
+                    emit('system_message', "Invalid image format!", to=request.sid)
+            except Exception as e:
+                print(f"Image error: {e}")
+                emit('system_message', "Invalid image data!", to=request.sid)
+        else:
+            emit('system_message', "Image too large or missing!", to=request.sid)
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 8080))
