@@ -1,2 +1,4 @@
-customtkinter
+Flask
+Flask-SocketIO
+eventlet
 Pillow
