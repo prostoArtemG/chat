@@ -16,9 +16,9 @@ class MainWindow(CTk):
         self.geometry('600x600')
         self.title("Chat Client")
 
-        # Server settings (change for remote connection)
-        self.server_host = "hopper.proxy.rlwy.net"  # “в≥й прокс≥
-        self.server_port = 23527  # “в≥й порт
+        # Server settings (»«ћ≈Ќ≈Ќќ: дл€ Railway TCP Proxy)
+        self.server_host = "chat-production-ced1.up.railway.app"  # “вой публичный домен
+        self.server_port = 54321  # “вой внешний TCP-порт из Railway
 
         self.username = "KTO-TO"
 
