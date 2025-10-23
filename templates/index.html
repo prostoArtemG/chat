@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>KUKUSH</title>
+    <title>KUKISH</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
@@ -328,9 +328,9 @@
 </head>
 <body>
     <div class="header">
-        <h1><i class="fas fa-comments"></i> KUKISH</h1>
+        <h1><i class="fas fa-comments"></i> KUKISHt</h1>
         <div class="menu">
-            <input id="nick-input" type="text" placeholder="Nick..." value="KTO-TO">
+            <input id="nick-input" type="text" placeholder="Nick..." value="KUKISH">
             <button class="btn" onclick="changeNick()"><i class="fas fa-user-edit"></i> Nick</button>
         </div>
     </div>
@@ -348,12 +348,14 @@
 
         socket.on('connect', () => {
             socket.emit('join', { username: username });
-            addMessage('[SYSTEM] Connected to KUKISH!', null, 'system');
+            addMessage('[SYSTEM] Connected to premium chat!', null, 'system');
         });
 
-        function addMessage(msg, img = null, type = 'message') {
+        // Фикс: Добавлен параметр sender для правильного отображения чужих сообщений
+        function addMessage(msg, img = null, type = 'message', sender = null) {
             const chat = document.getElementById('chat');
             const div = document.createElement('div');
+            const currentUsername = sender || username;  // Для other — из data, для own/system — локальный
             div.className = `message ${type === 'system' ? 'system' : (type === 'own' ? 'own' : 'other')}`;
             
             if (type === 'system') {
@@ -362,16 +364,17 @@
                 const timestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
                 const sideClass = type === 'own' ? 'own' : 'other';
                 div.innerHTML = `
-                    <div class="avatar">${username.charAt(0).toUpperCase()}</div>
+                    <div class="avatar">${currentUsername.charAt(0).toUpperCase()}</div>
                     <div class="message-content ${sideClass}">
                         <div class="message-header">
-                            <span class="username">${username}</span>
+                            <span class="username">${currentUsername}</span>
                             <span class="timestamp">${timestamp}</span>
                         </div>
                         <div class="message-text">${msg}</div>
                         ${img ? `<img src="${img}" alt="Image">` : ''}
                     </div>
                 `;
+                // Аватар для own — градиент
                 if (type === 'own') {
                     div.querySelector('.avatar').style.background = 'linear-gradient(45deg, #667eea, #764ba2)';
                 }
@@ -381,19 +384,17 @@
             chat.scrollTop = chat.scrollHeight;
         }
 
+        // Фикс: Добавляем только чужие сообщения (свои — локально)
         socket.on('text_message', data => {
-            if (data.username === username) {
-                addMessage(data.message, null, 'own');
-            } else {
-                addMessage(data.message, null, 'other');
+            if (data.username !== username) {
+                addMessage(data.message, null, 'other', data.username);
             }
         });
 
+        // Фикс: Добавляем только чужие изображения
         socket.on('image_message', data => {
-            if (data.username === username) {
-                addMessage(`Sent image: ${data.filename}`, `data:image/png;base64,${data.image}`, 'own');
-            } else {
-                addMessage(`Sent image: ${data.filename}`, `data:image/png;base64,${data.image}`, 'other');
+            if (data.username !== username) {
+                addMessage(`${data.username} sent image: ${data.filename}`, `data:image/png;base64,${data.image}`, 'other', data.username);
             }
         });
 
@@ -401,14 +402,19 @@
             addMessage(msg, null, 'system');
         });
 
+        // Фикс: Локальный эхо для своих сообщений
         function sendMessage() {
             const msg = document.getElementById('message').value.trim();
             if (msg) {
+                // Добавляем локально сразу
+                addMessage(msg, null, 'own');
+                // Отправляем серверу (для других)
                 socket.emit('text_message', { message: msg });
                 document.getElementById('message').value = '';
             }
         }
 
+        // Фикс: Локальный эхо для изображений (с заглушкой)
         function sendImage() {
             const file = document.getElementById('file-input').files[0];
             if (file) {
@@ -416,9 +422,20 @@
                     alert('File too large (max 5MB)!');
                     return;
                 }
+                // Локальная заглушка
+                addMessage(`Sending image: ${file.name}...`, null, 'own');
+                
                 const reader = new FileReader();
                 reader.onload = (e) => {
                     const b64 = e.target.result.split(',')[1];
+                    // Заменяем заглушку на реальное (удаляем последнюю own и добавляем новую)
+                    const messages = document.querySelectorAll('.message.own');
+                    if (messages.length > 0) {
+                        messages[messages.length - 1].remove();
+                    }
+                    // Добавляем финальное
+                    addMessage(`Sent image: ${file.name}`, `data:image/png;base64,${b64}`, 'own');
+                    // Отправляем серверу (для других)
                     socket.emit('image_message', { filename: file.name, image: b64 });
                 };
                 reader.readAsDataURL(file);
